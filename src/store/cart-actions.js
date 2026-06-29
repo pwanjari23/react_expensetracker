@@ -1,100 +1,46 @@
+import { createAsyncThunk } from '@reduxjs/toolkit';
 import { cartActions } from './cart';
-import { uiActions } from './ui';
 
-export const fetchCartData = () => {
-  return async (dispatch) => {
-    dispatch(
-      uiActions.showNotification({
-        status: 'pending',
-        title: 'Fetching...',
-        message: 'Fetching cart data!',
-      })
+// Async Thunk for sending cart data to Firebase
+export const sendCartData = createAsyncThunk(
+  'cart/sendCartData',
+  async (cart, { rejectWithValue }) => {
+    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const response = await fetch(
+      `https://${projectId}-default-rtdb.firebaseio.com/cart.json`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          items: cart.items || [],
+        }),
+      }
     );
 
-    const fetchData = async () => {
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const response = await fetch(
-        `https://${projectId}-default-rtdb.firebaseio.com/cart.json`
-      );
-
-      if (!response.ok) {
-        throw new Error('Could not fetch cart data!');
-      }
-
-      const data = await response.json();
-      return data;
-    };
-
-    try {
-      const cartData = await fetchData();
-      dispatch(
-        cartActions.replaceCart({
-          items: cartData ? cartData.items || [] : [],
-        })
-      );
-      dispatch(
-        uiActions.showNotification({
-          status: 'success',
-          title: 'Success!',
-          message: 'Fetched cart data successfully!',
-        })
-      );
-    } catch (error) {
-      dispatch(
-        uiActions.showNotification({
-          status: 'error',
-          title: 'Error!',
-          message: 'Fetching cart data failed!',
-        })
-      );
+    if (!response.ok) {
+      throw new Error('Sending cart data failed.');
     }
-  };
-};
+  }
+);
 
-export const sendCartData = (cart) => {
-  return async (dispatch) => {
-    dispatch(
-      uiActions.showNotification({
-        status: 'pending',
-        title: 'Sending...',
-        message: 'Sending cart data!',
-      })
+// Async Thunk for fetching cart data from Firebase
+export const fetchCartData = createAsyncThunk(
+  'cart/fetchCartData',
+  async (_, { dispatch, rejectWithValue }) => {
+    const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const response = await fetch(
+      `https://${projectId}-default-rtdb.firebaseio.com/cart.json`
     );
 
-    const sendRequest = async () => {
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const response = await fetch(
-        `https://${projectId}-default-rtdb.firebaseio.com/cart.json`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({
-            items: cart.items || [],
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Sending cart data failed.');
-      }
-    };
-
-    try {
-      await sendRequest();
-      dispatch(
-        uiActions.showNotification({
-          status: 'success',
-          title: 'Success!',
-          message: 'Sent cart data successfully!',
-        })
-      );
-    } catch (error) {
-      dispatch(
-        uiActions.showNotification({
-          status: 'error',
-          title: 'Error!',
-          message: 'Sending cart data failed!',
-        })
-      );
+    if (!response.ok) {
+      throw new Error('Could not fetch cart data!');
     }
-  };
-};
+
+    const data = await response.json();
+    dispatch(
+      cartActions.replaceCart({
+        items: data ? data.items || [] : [],
+      })
+    );
+    return data;
+  }
+);
