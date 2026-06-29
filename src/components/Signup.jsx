@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { counterActions, authActions, expensesActions } from "../store/index";
+import { counterActions, authActions, expensesActions, themeActions } from "../store/index";
 import { auth, isDummyConfig } from "../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import CompleteProfile from "./CompleteProfile";
@@ -38,6 +38,8 @@ export default function Signup() {
   const transactions = useSelector((state) => state.expenses.expenses);
   const reduxToken = useSelector((state) => state.auth.token);
   const reduxUserId = useSelector((state) => state.auth.userId);
+  const isPremium = useSelector((state) => state.theme.isPremium);
+  const isDark = useSelector((state) => state.theme.isDark);
 
   const [txName, setTxName] = useState("");
   const [txAmount, setTxAmount] = useState("");
@@ -708,6 +710,41 @@ export default function Signup() {
     }
   };
 
+  const downloadExpensesCSV = () => {
+    if (!transactions || transactions.length === 0) {
+      alert("No expenses to download!");
+      return;
+    }
+
+    // Define CSV headers
+    const headers = ["Date", "Category", "Description", "Amount ($)"];
+    
+    // Formulate rows
+    const rows = transactions.map((tx) => [
+      tx.date,
+      tx.category,
+      tx.name,
+      tx.amount.toFixed(2),
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
+
+    // Create a blob and download link
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `expenses_${user.uid || "user"}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const totalBalance = transactions.reduce((acc, curr) => acc + curr.amount, 12450.00);
   const totalIncome = transactions.filter(t => t.amount > 0).reduce((acc, curr) => acc + curr.amount, 0);
   const totalExpenses = transactions.filter(t => t.amount < 0).reduce((acc, curr) => acc + curr.amount, 0);
@@ -769,13 +806,21 @@ export default function Signup() {
   // INTERACTIVE FINFLOW EXPENSE TRACKER DASHBOARD VIEW (Wow Factor)
   if (success && user) {
     return (
-      <div className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col relative overflow-hidden font-sans">
+      <div className={`min-h-screen flex flex-col relative overflow-hidden font-sans transition-colors duration-300 ${
+        isDark ? "bg-[#070b13] text-slate-100" : "bg-slate-50 text-slate-800"
+      }`}>
         {/* Animated Background Mesh Blobs */}
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-violet-900/10 blur-[140px] pointer-events-none animate-pulse-slow"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-950/20 blur-[130px] pointer-events-none"></div>
+        {isDark && (
+          <>
+            <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-violet-900/10 blur-[140px] pointer-events-none animate-pulse-slow"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-950/20 blur-[130px] pointer-events-none"></div>
+          </>
+        )}
 
         {/* Top Navigation */}
-        <header className="border-b border-slate-900 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
+        <header className={`border-b sticky top-0 z-50 transition-colors duration-300 ${
+          isDark ? "border-slate-900 bg-slate-950/40 backdrop-blur-md" : "border-slate-200 bg-white/80 backdrop-blur-md"
+        }`}>
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/25">
@@ -783,7 +828,9 @@ export default function Signup() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
                 </svg>
               </div>
-              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">FinFlow Dashboard</span>
+              <span className={`text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${
+                isDark ? "from-white to-slate-400" : "from-slate-800 to-slate-600 text-slate-800"
+              }`}>FinFlow Dashboard</span>
             </div>
             
             <div className="flex items-center space-x-3">
@@ -855,6 +902,40 @@ export default function Signup() {
                   <span>Verified</span>
                 </span>
               )}
+              {/* Premium Controls */}
+              {isPremium && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => dispatch(themeActions.toggleTheme())}
+                    className={`flex items-center space-x-1 px-3 py-2 text-xs font-bold rounded-xl border transition active:scale-95 cursor-pointer ${
+                      isDark
+                        ? "bg-slate-900 border-slate-800 text-yellow-450 hover:bg-slate-800 hover:text-yellow-400"
+                        : "bg-white border-slate-200 text-indigo-650 hover:bg-slate-100 hover:text-indigo-600"
+                    }`}
+                    title="Toggle Light/Dark Theme"
+                  >
+                    {isDark ? "☀️ Light" : "🌙 Dark"}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={downloadExpensesCSV}
+                    className={`flex items-center space-x-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition active:scale-95 cursor-pointer ${
+                      isDark
+                        ? "bg-amber-950/20 border-amber-800/40 text-amber-400 hover:bg-amber-950/40 hover:text-amber-300"
+                        : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-650"
+                    }`}
+                    title="Download Expenses as CSV"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    <span>Download CSV</span>
+                  </button>
+                </>
+              )}
+
               <button
                 id="logout-btn"
                 onClick={handleLogout}
@@ -1001,12 +1082,14 @@ export default function Signup() {
             )}
             
             {/* Redux Counter Panel */}
-            <div className="bg-slate-950/40 border border-slate-900 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden animate-fade-in">
+            <div className={`border rounded-2xl p-5 backdrop-blur-md relative overflow-hidden animate-fade-in transition-colors duration-300 ${
+              isDark ? "bg-slate-950/40 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+            }`}>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Redux Central Counter</h3>
-                  <div className="text-3xl font-extrabold text-white mt-1 flex items-center">
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">
+                  <h3 className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-slate-400" : "text-slate-500"}`}>Redux Central Counter</h3>
+                  <div className="text-3xl font-extrabold mt-1 flex items-center">
+                    <span className={isDark ? "bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400" : "text-indigo-650"}>
                       {reduxCounter}
                     </span>
                   </div>
@@ -1014,25 +1097,41 @@ export default function Signup() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => dispatch(counterActions.increment())}
-                    className="px-3 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/50 hover:border-indigo-700/50 text-indigo-300 hover:text-indigo-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                    className={`px-3 py-1.5 border font-semibold rounded-xl text-[11px] transition active:scale-95 cursor-pointer ${
+                      isDark 
+                        ? "bg-indigo-950/40 hover:bg-indigo-900/40 border-indigo-900/50 text-indigo-300 hover:text-indigo-200" 
+                        : "bg-indigo-50 hover:bg-indigo-100/70 border-indigo-200 text-indigo-600"
+                    }`}
                   >
                     Increment
                   </button>
                   <button
                     onClick={() => dispatch(counterActions.decrement())}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold rounded-xl text-[11px] transition active:scale-95"
+                    className={`px-3 py-1.5 border font-semibold rounded-xl text-[11px] transition active:scale-95 cursor-pointer ${
+                      isDark 
+                        ? "bg-slate-900 hover:bg-slate-800 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white" 
+                        : "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-650"
+                    }`}
                   >
                     Decrement
                   </button>
                   <button
                     onClick={() => dispatch(counterActions.increase(5))}
-                    className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-900/50 hover:border-emerald-700/50 text-emerald-300 hover:text-emerald-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                    className={`px-3 py-1.5 border font-semibold rounded-xl text-[11px] transition active:scale-95 cursor-pointer ${
+                      isDark 
+                        ? "bg-emerald-950/40 hover:bg-emerald-900/40 border-emerald-900/50 text-emerald-300 hover:text-emerald-200" 
+                        : "bg-emerald-50 hover:bg-emerald-100/70 border-emerald-250 text-emerald-650"
+                    }`}
                   >
                     IncrementBy5
                   </button>
                   <button
                     onClick={() => dispatch(counterActions.decrease(5))}
-                    className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 hover:border-rose-700/50 text-rose-300 hover:text-rose-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                    className={`px-3 py-1.5 border font-semibold rounded-xl text-[11px] transition active:scale-95 cursor-pointer ${
+                      isDark 
+                        ? "bg-rose-950/40 hover:bg-rose-900/40 border-rose-900/50 text-rose-300 hover:text-rose-200" 
+                        : "bg-rose-50 hover:bg-rose-100/70 border-rose-250 text-rose-650"
+                    }`}
                   >
                     DecrementBy5
                   </button>
@@ -1043,30 +1142,36 @@ export default function Signup() {
             {/* Realtime Stats Display */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card 1 */}
-              <div className="bg-slate-950/50 border border-slate-900 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden">
-                <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Net Balance</span>
-                <div className="text-2xl font-bold mt-2 text-white">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <div className="text-[11px] text-emerald-400 font-semibold mt-1">▲ +8.2% from last month</div>
+              <div className={`border rounded-2xl p-5 backdrop-blur-md relative overflow-hidden transition-colors duration-300 ${
+                isDark ? "bg-slate-950/50 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+              }`}>
+                <span className="text-xs text-slate-550 font-bold tracking-wider uppercase">Net Balance</span>
+                <div className={`text-2xl font-bold mt-2 ${isDark ? "text-white" : "text-slate-850"}`}>${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-[11px] text-emerald-500 font-semibold mt-1">▲ +8.2% from last month</div>
                 <div className="absolute top-0 right-0 h-full w-1.5 bg-indigo-500"></div>
               </div>
               {/* Card 2 */}
-              <div className="bg-slate-950/50 border border-slate-900 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden">
-                <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Total Income</span>
-                <div className="text-2xl font-bold mt-2 text-emerald-400">+${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className={`border rounded-2xl p-5 backdrop-blur-md relative overflow-hidden transition-colors duration-300 ${
+                isDark ? "bg-slate-950/50 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+              }`}>
+                <span className="text-xs text-slate-550 font-bold tracking-wider uppercase">Total Income</span>
+                <div className="text-2xl font-bold mt-2 text-emerald-500">+${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <div className="text-[11px] text-slate-500 mt-1">This session test activities</div>
                 <div className="absolute top-0 right-0 h-full w-1.5 bg-emerald-500"></div>
               </div>
               {/* Card 3 */}
-              <div className="bg-slate-950/50 border border-slate-900 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden">
-                <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Total Expenses</span>
-                <div className="text-2xl font-bold mt-2 text-rose-400">-${Math.abs(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className={`border rounded-2xl p-5 backdrop-blur-md relative overflow-hidden transition-colors duration-300 ${
+                isDark ? "bg-slate-950/50 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+              }`}>
+                <span className="text-xs text-slate-550 font-bold tracking-wider uppercase">Total Expenses</span>
+                <div className="text-2xl font-bold mt-2 text-rose-500">-${Math.abs(totalExpenses).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <div className="text-[11px] text-slate-500 mt-1">All debit operations</div>
                 <div className="absolute top-0 right-0 h-full w-1.5 bg-rose-500"></div>
               </div>
             </div>
 
             {/* Premium Activation Banner */}
-            {Math.abs(totalExpenses) > 10000 && (
+            {Math.abs(totalExpenses) > 10000 && !isPremium && (
               <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/30 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
                 <div className="flex items-start space-x-3">
                   <div className="h-9 w-9 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -1080,7 +1185,7 @@ export default function Signup() {
                 <button
                   type="button"
                   id="activate-premium-btn"
-                  onClick={() => alert("Premium Activated! Enjoy your premium experience.")}
+                  onClick={() => dispatch(themeActions.activatePremium())}
                   className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 flex-shrink-0 cursor-pointer"
                 >
                   Activate Premium
@@ -1089,8 +1194,10 @@ export default function Signup() {
             )}
 
             {/* Daily Expenses Tracker Form */}
-            <div className="bg-slate-950/30 border border-slate-900 rounded-2xl p-6 backdrop-blur-md">
-              <h3 className="text-sm font-bold text-white mb-4 flex items-center">
+            <div className={`border rounded-2xl p-6 backdrop-blur-md transition-colors duration-300 ${
+              isDark ? "bg-slate-950/30 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+            }`}>
+              <h3 className={`text-sm font-bold mb-4 flex items-center ${isDark ? "text-white" : "text-slate-800"}`}>
                 <span className="h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
                 {editingTxId ? "Edit Daily Expense" : "Add Daily Expense"}
               </h3>
@@ -1102,7 +1209,9 @@ export default function Signup() {
                   placeholder="Money he had spent ($)"
                   value={txAmount}
                   onChange={(e) => setTxAmount(e.target.value)}
-                  className="bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+                  className={`border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 transition-colors duration-300 ${
+                    isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                  }`}
                   required
                 />
                 {/* 2. Description */}
@@ -1111,7 +1220,9 @@ export default function Signup() {
                   placeholder="Description of the expense done"
                   value={txName}
                   onChange={(e) => setTxName(e.target.value)}
-                  className="bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500 md:col-span-2"
+                  className={`border rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-indigo-500 md:col-span-2 transition-colors duration-300 ${
+                    isDark ? "bg-slate-900/50 border-slate-800 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                  }`}
                   required
                 />
                 {/* 3. Category (Dropdown) */}
@@ -1119,7 +1230,9 @@ export default function Signup() {
                   <select
                     value={txCategory}
                     onChange={(e) => setTxCategory(e.target.value)}
-                    className="bg-slate-900/50 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 flex-1"
+                    className={`border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-indigo-500 flex-1 transition-colors duration-300 ${
+                      isDark ? "bg-slate-900/50 border-slate-800 text-white" : "bg-slate-50 border-slate-200 text-slate-800"
+                    }`}
                   >
                     <option value="Food">Food</option>
                     <option value="Petrol">Petrol</option>
@@ -1130,7 +1243,7 @@ export default function Signup() {
                   </select>
                   <button
                     type="submit"
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl text-xs flex items-center justify-center transition shadow-md shadow-indigo-600/10 active:scale-95"
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl text-xs flex items-center justify-center transition shadow-md shadow-indigo-600/10 active:scale-95 cursor-pointer"
                   >
                     {editingTxId ? "Update" : "Add"}
                   </button>
@@ -1142,7 +1255,7 @@ export default function Signup() {
                         setTxName("");
                         setTxAmount("");
                       }}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 rounded-xl text-xs flex items-center justify-center transition active:scale-95"
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 rounded-xl text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1152,29 +1265,33 @@ export default function Signup() {
             </div>
 
             {/* Transactions Log */}
-            <div className="bg-slate-950/30 border border-slate-900 rounded-2xl p-6 backdrop-blur-md">
+            <div className={`border rounded-2xl p-6 backdrop-blur-md transition-colors duration-300 ${
+              isDark ? "bg-slate-950/30 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+            }`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-white">Interactive Transactions Log</h3>
+                <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-800"}`}>Interactive Transactions Log</h3>
                 <span className="text-[10px] text-slate-500 uppercase tracking-widest">{transactions.length} Records</span>
               </div>
               
-              <div className="divide-y divide-slate-900 max-h-[280px] overflow-y-auto pr-1">
+              <div className={`divide-y max-h-[280px] overflow-y-auto pr-1 ${isDark ? "divide-slate-900" : "divide-slate-100"}`}>
                 {transactions.map((tx) => (
-                  <div key={tx.id} className="py-3 flex items-center justify-between text-xs animate-fade-in">
+                  <div key={tx.id} className={`py-3 flex items-center justify-between text-xs animate-fade-in border-b ${
+                    isDark ? "border-slate-900/60" : "border-slate-100"
+                  }`}>
                     <div className="flex items-center space-x-3">
                       <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${
-                        tx.amount > 0 ? "bg-emerald-950 text-emerald-400" : "bg-rose-950 text-rose-400"
+                        tx.amount > 0 ? "bg-emerald-950/40 text-emerald-400" : "bg-rose-950/40 text-rose-450"
                       }`}>
                         {tx.category.substring(0, 3).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-200">{tx.name}</div>
+                        <div className={`font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{tx.name}</div>
                         <div className="text-[10px] text-slate-500 mt-0.5">{tx.date} • {tx.category}</div>
                       </div>
                     </div>
                     
                     <div className="flex items-center space-x-3">
-                      <div className={`font-bold ${tx.amount > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      <div className={`font-bold ${tx.amount > 0 ? "text-emerald-500" : "text-rose-500"}`}>
                         {tx.amount > 0 ? `+$${tx.amount.toFixed(2)}` : `-$${Math.abs(tx.amount).toFixed(2)}`}
                       </div>
                       
@@ -1188,7 +1305,11 @@ export default function Signup() {
                             setTxAmount(Math.abs(tx.amount).toString());
                             setTxCategory(tx.category);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-800 hover:border-indigo-900/50 rounded-lg transition active:scale-95"
+                          className={`p-1.5 border rounded-lg transition active:scale-95 cursor-pointer ${
+                            isDark 
+                              ? "text-slate-405 hover:text-indigo-400 bg-slate-900 border-slate-800 hover:border-indigo-900/50" 
+                              : "text-slate-500 hover:text-indigo-650 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                          }`}
                           title="Edit"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
@@ -1198,7 +1319,11 @@ export default function Signup() {
                         <button
                           type="button"
                           onClick={() => deleteExpense(tx.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 hover:border-rose-900/50 rounded-lg transition active:scale-95"
+                          className={`p-1.5 border rounded-lg transition active:scale-95 cursor-pointer ${
+                            isDark 
+                              ? "text-slate-405 hover:text-rose-450 bg-slate-900 border-slate-800 hover:border-rose-900/50" 
+                              : "text-slate-500 hover:text-rose-600 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                          }`}
                           title="Delete"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
