@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { auth, isDummyConfig } from "../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import CompleteProfile from "./CompleteProfile";
@@ -38,6 +39,9 @@ export default function Signup() {
   const [txAmount, setTxAmount] = useState("");
   const [txCategory, setTxCategory] = useState("Food");
   const [editingTxId, setEditingTxId] = useState(null);
+
+  const reduxCounter = useSelector((state) => state.counter);
+  const dispatch = useDispatch();
 
   const [savingsGoal, setSavingsGoal] = useState({
     name: "MacBook Air M3",
@@ -334,13 +338,11 @@ export default function Signup() {
 
     try {
       if (isDummyConfig) {
-        // DEMO MOCK AUTH
         await new Promise((resolve) => setTimeout(resolve, 1000));
         setUser({ email: email.toLowerCase(), isMock: true });
         setSuccess(true);
         console.log("User has successfully signed up.");
       } else {
-        // LIVE FIREBASE AUTH
         if (isLogin) {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           // Fetch full profile data from Firebase REST API
@@ -993,6 +995,46 @@ export default function Signup() {
               </div>
             )}
             
+            {/* Redux Counter Panel */}
+            <div className="bg-slate-950/40 border border-slate-900 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Redux Central Counter</h3>
+                  <div className="text-3xl font-extrabold text-white mt-1 flex items-center">
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">
+                      {reduxCounter}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => dispatch({ type: 'increment' })}
+                    className="px-3 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/50 hover:border-indigo-700/50 text-indigo-300 hover:text-indigo-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                  >
+                    Increment
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'decrement' })}
+                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold rounded-xl text-[11px] transition active:scale-95"
+                  >
+                    Decrement
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'incrementby5' })}
+                    className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-900/50 hover:border-emerald-700/50 text-emerald-300 hover:text-emerald-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                  >
+                    IncrementBy5
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'decrementby5' })}
+                    className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 hover:border-rose-700/50 text-rose-300 hover:text-rose-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
+                  >
+                    DecrementBy5
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Realtime Stats Display */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Card 1 */}
