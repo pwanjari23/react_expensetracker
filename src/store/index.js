@@ -23,5 +23,6 @@ export { expensesActions } from './expenses';
 export { themeActions } from './theme';
 export { cartActions } from './cart';
 export { uiActions } from './ui';
+export * from './cart-actions';
 
 export default store;

@@ -1,14 +1,12 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { cartActions, uiActions } from '../store/index';
+import { cartActions, uiActions, fetchCartData, sendCartData } from '../store/index';
 import Notification from './UI/Notification';
 
 const DUMMY_PRODUCTS = [
   { id: 'p1', price: 6, title: 'Test Item 1', description: 'This is a first product - amazing!' },
   { id: 'p2', price: 8, title: 'Test Item 2', description: 'This is a second product - wonderful!' },
 ];
-
-let isInitial = true;
 
 export default function CartDemoApp() {
   const dispatch = useDispatch();
@@ -19,53 +17,16 @@ export default function CartDemoApp() {
 
   const totalQuantity = cartItems.reduce((val, item) => val + item.quantity, 0);
 
-  // Send Cart Data to Firebase on Cart Changes
+  // 1. Fetch Cart Data from Firebase on initial component mount
   useEffect(() => {
-    const sendCartData = async () => {
-      dispatch(
-        uiActions.showNotification({
-          status: 'pending',
-          title: 'Sending...',
-          message: 'Sending cart data!',
-        })
-      );
-      
-      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const response = await fetch(
-        `https://${projectId}-default-rtdb.firebaseio.com/cart.json`,
-        {
-          method: 'PUT',
-          body: JSON.stringify(cart),
-        }
-      );
+    dispatch(fetchCartData());
+  }, [dispatch]);
 
-      if (!response.ok) {
-        throw new Error('Sending cart data failed.');
-      }
-
-      dispatch(
-        uiActions.showNotification({
-          status: 'success',
-          title: 'Success!',
-          message: 'Sent cart data successfully!',
-        })
-      );
-    };
-
-    if (isInitial) {
-      isInitial = false;
-      return;
+  // 2. Synchronize Cart Data to Firebase only when local changes occur
+  useEffect(() => {
+    if (cart.changed) {
+      dispatch(sendCartData(cart));
     }
-
-    sendCartData().catch((error) => {
-      dispatch(
-        uiActions.showNotification({
-          status: 'error',
-          title: 'Error!',
-          message: 'Sending cart data failed!',
-        })
-      );
-    });
   }, [cart, dispatch]);
 
   const handleToggleCart = () => {
