@@ -37,6 +37,7 @@ export default function Signup() {
   const [txName, setTxName] = useState("");
   const [txAmount, setTxAmount] = useState("");
   const [txCategory, setTxCategory] = useState("Food");
+  const [editingTxId, setEditingTxId] = useState(null);
 
   const [savingsGoal, setSavingsGoal] = useState({
     name: "MacBook Air M3",
@@ -507,13 +508,81 @@ export default function Signup() {
       parsedAmount = Math.abs(parsedAmount);
     }
 
+    const originalTx = editingTxId ? transactions.find(t => t.id === editingTxId) : null;
     const newExpense = {
       name: txName.trim(),
       amount: parsedAmount,
       category: txCategory,
-      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      date: originalTx ? originalTx.date : new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     };
 
+    if (editingTxId) {
+      // ─── UPDATE TRANSACTION (PUT) ───
+      if (isDummyConfig || !auth || !auth.currentUser) {
+        // Fallback for mock mode
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
+        );
+        setEditingTxId(null);
+        setTxName("");
+        setTxAmount("");
+        return;
+      }
+
+      try {
+        const idToken = await auth.currentUser.getIdToken(true);
+        const uid = auth.currentUser.uid;
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+        const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${idToken}`;
+
+        const res = await fetch(url, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newExpense),
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to update: ${res.status}`);
+        }
+
+        // Success PUT response -> update state
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
+        );
+        setEditingTxId(null);
+        setTxName("");
+        setTxAmount("");
+      } catch (err) {
+        console.error("Error updating expense to RTDB:", err);
+        // Fallback try: standard database URL format
+        try {
+          const idToken = await auth.currentUser.getIdToken(true);
+          const uid = auth.currentUser.uid;
+          const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+          const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${idToken}`;
+
+          const res = await fetch(fallbackUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newExpense),
+          });
+
+          if (res.ok) {
+            setTransactions((prev) =>
+              prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
+            );
+            setEditingTxId(null);
+            setTxName("");
+            setTxAmount("");
+          }
+        } catch (e) {
+          console.error("Fallback update failed:", e);
+        }
+      }
+      return;
+    }
+
+    // ─── CREATE TRANSACTION (POST) ───
     if (isDummyConfig || !auth || !auth.currentUser) {
       // Fallback for mock mode
       const mockTx = {
@@ -582,6 +651,52 @@ export default function Signup() {
         }
       } catch (e) {
         console.error("Fallback saving failed:", e);
+      }
+    }
+  };
+
+  const deleteExpense = async (id) => {
+    if (isDummyConfig || !auth || !auth.currentUser) {
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      console.log("Expense successfuly deleted");
+      return;
+    }
+
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const uid = auth.currentUser.uid;
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${id}.json?auth=${idToken}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete: ${res.status}`);
+      }
+
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      console.log("Expense successfuly deleted");
+    } catch (err) {
+      console.error("Error deleting expense:", err);
+      // Fallback try: standard database URL format
+      try {
+        const idToken = await auth.currentUser.getIdToken(true);
+        const uid = auth.currentUser.uid;
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${id}.json?auth=${idToken}`;
+
+        const res = await fetch(fallbackUrl, {
+          method: "DELETE",
+        });
+
+        if (res.ok) {
+          setTransactions((prev) => prev.filter((t) => t.id !== id));
+          console.log("Expense successfuly deleted");
+        }
+      } catch (e) {
+        console.error("Fallback deletion failed:", e);
       }
     }
   };
@@ -907,7 +1022,7 @@ export default function Signup() {
             <div className="bg-slate-950/30 border border-slate-900 rounded-2xl p-6 backdrop-blur-md">
               <h3 className="text-sm font-bold text-white mb-4 flex items-center">
                 <span className="h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
-                Add Daily Expense
+                {editingTxId ? "Edit Daily Expense" : "Add Daily Expense"}
               </h3>
               <form onSubmit={addTransaction} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {/* 1. Money spent */}
@@ -947,8 +1062,21 @@ export default function Signup() {
                     type="submit"
                     className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 rounded-xl text-xs flex items-center justify-center transition shadow-md shadow-indigo-600/10 active:scale-95"
                   >
-                    Add
+                    {editingTxId ? "Update" : "Add"}
                   </button>
+                  {editingTxId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTxId(null);
+                        setTxName("");
+                        setTxAmount("");
+                      }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 rounded-xl text-xs flex items-center justify-center transition active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
@@ -974,8 +1102,40 @@ export default function Signup() {
                         <div className="text-[10px] text-slate-500 mt-0.5">{tx.date} • {tx.category}</div>
                       </div>
                     </div>
-                    <div className={`font-bold ${tx.amount > 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {tx.amount > 0 ? `+$${tx.amount.toFixed(2)}` : `-$${Math.abs(tx.amount).toFixed(2)}`}
+                    
+                    <div className="flex items-center space-x-3">
+                      <div className={`font-bold ${tx.amount > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {tx.amount > 0 ? `+$${tx.amount.toFixed(2)}` : `-$${Math.abs(tx.amount).toFixed(2)}`}
+                      </div>
+                      
+                      {/* Action Buttons: Edit and Delete */}
+                      <div className="flex items-center space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTxId(tx.id);
+                            setTxName(tx.name);
+                            setTxAmount(Math.abs(tx.amount).toString());
+                            setTxCategory(tx.category);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-800 hover:border-indigo-900/50 rounded-lg transition active:scale-95"
+                          title="Edit"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteExpense(tx.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 hover:border-rose-900/50 rounded-lg transition active:scale-95"
+                          title="Delete"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
