@@ -1460,7 +1460,9 @@ export default function Signup() {
 
         </main>
 
-        <footer className="w-full text-center py-5 border-t border-slate-900 text-xs text-slate-600 z-10">
+        <footer className={`w-full text-center py-5 border-t text-xs z-10 transition-colors duration-300 ${
+          isDark ? "border-slate-900 text-slate-650" : "border-slate-200 text-slate-500"
+        }`}>
           © {new Date().getFullYear()} FinFlow. Created with Google Gemini. All rights reserved.
         </footer>
       </div>
@@ -1469,11 +1471,17 @@ export default function Signup() {
 
   // CORE AUTHENTICATION VIEW (Premium custom layout)
   return (
-    <div className="min-h-screen bg-[#03060f] text-slate-200 flex flex-col relative overflow-hidden font-sans select-none">
+    <div className={`min-h-screen flex flex-col relative overflow-hidden font-sans select-none transition-colors duration-300 ${
+      isDark ? "bg-[#03060f] text-slate-200" : "bg-slate-50 text-slate-800"
+    }`}>
       
       {/* Background neon blobs */}
-      <div className="absolute top-[10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-indigo-600/10 blur-[130px] pointer-events-none animate-float-1"></div>
-      <div className="absolute bottom-[20%] right-[-10%] w-[380px] h-[380px] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none animate-float-2"></div>
+      {isDark && (
+        <>
+          <div className="absolute top-[10%] left-[-10%] w-[400px] h-[400px] rounded-full bg-indigo-600/10 blur-[130px] pointer-events-none animate-float-1"></div>
+          <div className="absolute bottom-[20%] right-[-10%] w-[380px] h-[380px] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none animate-float-2"></div>
+        </>
+      )}
       
       {/* Outer wrapper */}
       <div className="max-w-7xl w-full mx-auto flex-1 flex flex-col md:flex-row items-center justify-center p-6 md:p-12 gap-12 lg:gap-20 z-10">
@@ -1487,16 +1495,16 @@ export default function Signup() {
                   <path fillRule="evenodd" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6Zm4.5 7.5a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0v-2.25a.75.75 0 0 1 .75-.75Zm3.75-1.5a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0v-3.75a.75.75 0 0 1 .75-.75Zm3.75-3a.75.75 0 0 1 .75.75v6.75a.75.75 0 0 1-1.5 0V7.5a.75.75 0 0 1 .75-.75Zm3.75 6a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-1.5 0v-.75a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
                 </svg>
               </div>
-              <span className="text-2xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">FinFlow</span>
+              <span className={`text-2xl font-black ${isDark ? "bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent" : "text-slate-800"}`}>FinFlow</span>
             </div>
-            <p className="text-slate-400 text-sm font-medium">Next-gen financial management platform.</p>
+            <p className={`text-sm font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>Next-gen financial management platform.</p>
           </div>
 
           <div className="space-y-4">
-            <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white">
-              Take complete control of your <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">financial destiny</span>.
+            <h1 className={`text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight ${isDark ? "text-white" : "text-slate-850"}`}>
+              Take complete control of your <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">financial destiny</span>.
             </h1>
-            <p className="text-slate-400 text-sm leading-relaxed">
+            <p className={`text-sm leading-relaxed ${isDark ? "text-slate-400" : "text-slate-550"}`}>
               Track expenses in real-time, generate smart reports, and sync accounts securely. Built for modern builders.
             </p>
           </div>
@@ -1505,30 +1513,32 @@ export default function Signup() {
           <div className="relative pt-6 max-w-sm">
             <div className="absolute top-10 left-6 w-[320px] h-[190px] bg-indigo-500/10 rounded-2xl blur-2xl animate-pulse"></div>
             {/* The holographic card */}
-            <div className="w-[320px] h-[190px] rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950 p-6 flex flex-col justify-between shadow-2xl relative backdrop-blur-lg transform hover:rotate-2 hover:scale-[1.02] transition-all duration-300">
+            <div className={`w-[320px] h-[190px] rounded-2xl p-6 flex flex-col justify-between shadow-2xl relative backdrop-blur-lg transform hover:rotate-2 hover:scale-[1.02] transition-all duration-300 ${
+              isDark ? "border border-slate-700/50 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950" : "bg-white border border-slate-200 text-slate-800 shadow-lg shadow-slate-100"
+            }`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Premium Card</div>
-                  <div className="text-lg font-bold tracking-tight text-slate-100 mt-1">FinFlow Elite</div>
+                  <div className="text-[10px] text-slate-550 font-bold uppercase tracking-wider">Premium Card</div>
+                  <div className={`text-lg font-bold tracking-tight mt-1 ${isDark ? "text-slate-100" : "text-slate-900"}`}>FinFlow Elite</div>
                 </div>
-                <div className="h-6 w-8 bg-slate-800 rounded-md flex items-center justify-center opacity-60">
+                <div className="h-6 w-8 bg-slate-800/20 rounded-md flex items-center justify-center opacity-60">
                   <span className="h-3 w-5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-sm"></span>
                 </div>
               </div>
 
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest">Card number</div>
-                <div className="text-sm font-mono text-slate-200 mt-0.5">••••  ••••  ••••  8824</div>
+                <div className="text-[10px] text-slate-550 uppercase tracking-widest">Card number</div>
+                <div className={`text-sm font-mono mt-0.5 ${isDark ? "text-slate-200" : "text-slate-800"}`}>••••  ••••  ••••  8824</div>
               </div>
 
               <div className="flex justify-between items-end">
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase">Card Holder</div>
-                  <div className="text-xs font-semibold text-slate-300">DEMO PROFILE</div>
+                  <div className="text-[9px] text-slate-550 uppercase">Card Holder</div>
+                  <div className={`text-xs font-semibold ${isDark ? "text-slate-350" : "text-slate-700"}`}>DEMO PROFILE</div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-slate-500 uppercase text-right">Expires</div>
-                  <div className="text-xs font-semibold text-slate-300 text-right">09/31</div>
+                  <div className="text-[9px] text-slate-550 uppercase text-right">Expires</div>
+                  <div className={`text-xs font-semibold text-right ${isDark ? "text-slate-350" : "text-slate-700"}`}>09/31</div>
                 </div>
               </div>
             </div>
@@ -1538,25 +1548,27 @@ export default function Signup() {
         {/* Right Side: Auth Form Card (Responsive Glassmorphic Design) */}
         <div className="w-full max-w-[420px] flex flex-col space-y-6 animate-fade-in-delayed">
           
-          <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden glow-border">
+          <div className={`border rounded-3xl p-8 backdrop-blur-xl transition-all duration-300 shadow-2xl relative overflow-hidden ${
+            isDark ? "bg-slate-950/40 border-slate-900" : "bg-white border-slate-200"
+          }`}>
             
             {showForgotPassword ? (
               <div className="animate-fade-in">
                 <div className="mb-6 text-center">
-                  <h2 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+                  <h2 className={`text-2xl font-black tracking-tight flex items-center justify-center gap-2 ${isDark ? "text-white" : "text-slate-850"}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-indigo-400">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
                     </svg>
                     Reset Password
                   </h2>
-                  <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                  <p className={`text-xs mt-1.5 leading-relaxed ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                     Provide your register email address below. We'll send you a secure link to reset your password.
                   </p>
                 </div>
 
                 {/* Error Banner */}
                 {error && (
-                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-400 text-xs font-semibold flex items-start space-x-2 animate-shake">
+                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-450 text-xs font-semibold flex items-start space-x-2 animate-shake">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                     </svg>
@@ -1566,14 +1578,14 @@ export default function Signup() {
 
                 {/* Success Banner */}
                 {forgotSuccess && (
-                  <div className="mb-6 p-3.5 bg-emerald-950/30 border border-emerald-900/40 rounded-2xl text-emerald-400 text-xs font-semibold flex flex-col space-y-1 animate-fade-in">
+                  <div className="mb-6 p-3.5 bg-emerald-950/30 border border-emerald-900/40 rounded-2xl text-emerald-450 text-xs font-semibold flex flex-col space-y-1 animate-fade-in">
                     <div className="flex items-start space-x-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                       <span>Reset email sent successfully!</span>
                     </div>
-                    <span className="text-[11px] text-emerald-500 pl-6 leading-relaxed">
+                    <span className="text-[11px] text-emerald-650 pl-6 leading-relaxed">
                       A password reset link has been dispatched to <strong>{forgotEmail}</strong>. Open the link to update your password, then return here to log in.
                     </span>
                   </div>
@@ -1593,7 +1605,9 @@ export default function Signup() {
                       placeholder="Email Address"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      className={`w-full pl-10 pr-4 py-3 border focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs transition duration-300 ${
+                        isDark ? "bg-slate-950/50 border-slate-900 text-white placeholder-slate-600" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                      }`}
                       required
                       disabled={forgotLoading || forgotSuccess}
                     />
@@ -1634,7 +1648,7 @@ export default function Signup() {
                       setForgotSuccess(false);
                       setError("");
                     }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-bold hover:underline transition"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-bold hover:underline transition cursor-pointer"
                   >
                     Back to Login
                   </button>
@@ -1643,23 +1657,25 @@ export default function Signup() {
             ) : (
               <>
                 {/* Interactive Tab Switcher */}
-                <div className="flex bg-slate-950/60 rounded-xl p-1 mb-8 border border-slate-900">
+                <div className={`flex rounded-xl p-1 mb-8 border transition-colors duration-300 ${
+                  isDark ? "bg-slate-950/60 border-slate-900" : "bg-slate-100 border-slate-200"
+                }`}>
                   <button
                     onClick={() => { setIsLogin(false); setError(""); }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       !isLogin 
                         ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
-                        : "text-slate-500 hover:text-slate-300"
+                        : isDark ? "text-slate-500 hover:text-slate-350" : "text-slate-450 hover:text-slate-655"
                     }`}
                   >
                     Sign Up
                   </button>
                   <button
                     onClick={() => { setIsLogin(true); setError(""); }}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       isLogin 
                         ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
-                        : "text-slate-500 hover:text-slate-300"
+                        : isDark ? "text-slate-500 hover:text-slate-355" : "text-slate-450 hover:text-slate-655"
                     }`}
                   >
                     Log In
@@ -1667,17 +1683,17 @@ export default function Signup() {
                 </div>
 
                 <div className="mb-6 text-center">
-                  <h2 className="text-2xl font-black tracking-tight text-white">
+                  <h2 className={`text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-850"}`}>
                     {isLogin ? "Welcome back" : "Create your account"}
                   </h2>
-                  <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                  <p className={`text-xs mt-1.5 leading-relaxed ${isDark ? "text-slate-400" : "text-slate-550"}`}>
                     {isLogin ? "Login to access your tracker panel" : "Start managing your balances and logs"}
                   </p>
                 </div>
 
                 {/* Error Message banner */}
                 {error && (
-                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-400 text-xs font-semibold flex items-start space-x-2 animate-shake">
+                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-450 text-xs font-semibold flex items-start space-x-2 animate-shake">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                     </svg>
@@ -1701,7 +1717,9 @@ export default function Signup() {
                       placeholder="Email Address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      className={`w-full pl-10 pr-4 py-3 border focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs transition duration-300 ${
+                        isDark ? "bg-slate-950/50 border-slate-900 text-white placeholder-slate-600" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                      }`}
                       required
                     />
                   </div>
@@ -1718,13 +1736,15 @@ export default function Signup() {
                       placeholder="Enter Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      className={`w-full pl-10 pr-10 py-3 border focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs transition duration-300 ${
+                        isDark ? "bg-slate-950/50 border-slate-900 text-white placeholder-slate-600" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                      }`}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 focus:outline-none"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-350 focus:outline-none cursor-pointer"
                     >
                       {showPassword ? (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -1748,9 +1768,9 @@ export default function Signup() {
                           setShowForgotPassword(true);
                           setError("");
                           setForgotSuccess(false);
-                          setForgotEmail(email); // prefill with whatever was typed in login email field
+                          setForgotEmail(email);
                         }}
-                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold transition focus:outline-none"
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold transition focus:outline-none cursor-pointer"
                       >
                         Forgot Password?
                       </button>
@@ -1762,7 +1782,7 @@ export default function Signup() {
                     <div className="space-y-1.5 px-0.5">
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-500 font-bold uppercase">Strength</span>
-                        <span className="font-semibold text-slate-300">{passwordStrength.label}</span>
+                        <span className={`font-semibold ${isDark ? "text-slate-350" : "text-slate-700"}`}>{passwordStrength.label}</span>
                       </div>
                       <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-300 ${passwordStrength.color}`}></div>
@@ -1783,7 +1803,9 @@ export default function Signup() {
                         placeholder="Confirm Password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                        className={`w-full pl-10 pr-4 py-3 border focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs transition duration-300 ${
+                          isDark ? "bg-slate-950/50 border-slate-900 text-white placeholder-slate-600" : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400"
+                        }`}
                         required={!isLogin}
                       />
                     </div>
@@ -1822,7 +1844,9 @@ export default function Signup() {
 
           {/* Toggle Button in bottom container */}
           {!showForgotPassword && (
-            <div className="bg-slate-950/20 border border-slate-900 rounded-2xl py-4 px-6 text-center text-xs">
+            <div className={`border rounded-2xl py-4 px-6 text-center text-xs transition-colors duration-300 ${
+              isDark ? "bg-slate-950/20 border-slate-900" : "bg-white border-slate-200 shadow-sm"
+            }`}>
               <span className="text-slate-500">
                 {isLogin ? "Need a tracker account? " : "Already registered? "}
               </span>
@@ -1831,7 +1855,7 @@ export default function Signup() {
                   setIsLogin(!isLogin);
                   setError("");
                 }}
-                className="text-indigo-400 font-bold hover:text-indigo-300 underline focus:outline-none transition"
+                className="text-indigo-400 font-bold hover:text-indigo-300 underline focus:outline-none transition cursor-pointer"
               >
                 {isLogin ? "Create Account" : "Access Console"}
               </button>
@@ -1843,7 +1867,9 @@ export default function Signup() {
       </div>
 
       {/* Footer */}
-      <footer className="w-full text-center py-6 border-t border-slate-900/50 text-[11px] text-slate-600 z-10">
+      <footer className={`w-full text-center py-6 border-t text-[11px] z-10 transition-colors duration-300 ${
+        isDark ? "border-slate-900/50 text-slate-600" : "border-slate-200 text-slate-500"
+      }`}>
         © {new Date().getFullYear()} FinFlow Payments Inc. Powered by Firebase. All rights reserved.
       </footer>
     </div>
