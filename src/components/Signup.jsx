@@ -770,30 +770,33 @@ export default function Signup() {
               </div>
             </div>
 
-            {/* Quick Interactive Tracker Form */}
+            {/* Daily Expenses Tracker Form */}
             <div className="bg-slate-950/30 border border-slate-900 rounded-2xl p-6 backdrop-blur-md">
               <h3 className="text-sm font-bold text-white mb-4 flex items-center">
-                <span className="h-2 w-2 rounded-full bg-indigo-500 mr-2"></span>
-                Record a New Expense
+                <span className="h-2 w-2 rounded-full bg-indigo-500 mr-2 animate-pulse"></span>
+                Add Daily Expense
               </h3>
               <form onSubmit={addTransaction} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input
-                  type="text"
-                  placeholder="Expense Item / Source"
-                  value={txName}
-                  onChange={(e) => setTxName(e.target.value)}
-                  className="bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500 md:col-span-2"
-                  required
-                />
+                {/* 1. Money spent */}
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="Amount ($)"
+                  placeholder="Money he had spent ($)"
                   value={txAmount}
                   onChange={(e) => setTxAmount(e.target.value)}
                   className="bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500"
                   required
                 />
+                {/* 2. Description */}
+                <input
+                  type="text"
+                  placeholder="Description of the expense done"
+                  value={txName}
+                  onChange={(e) => setTxName(e.target.value)}
+                  className="bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500 md:col-span-2"
+                  required
+                />
+                {/* 3. Category (Dropdown) */}
                 <div className="flex space-x-2">
                   <select
                     value={txCategory}
@@ -801,10 +804,11 @@ export default function Signup() {
                     className="bg-slate-900/50 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 flex-1"
                   >
                     <option value="Food">Food</option>
-                    <option value="Income">Income</option>
+                    <option value="Petrol">Petrol</option>
+                    <option value="Salary">Salary</option>
                     <option value="Entertainment">Entertainment</option>
                     <option value="Shopping">Shopping</option>
-                    <option value="Bills">Bills</option>
+                    <option value="Others">Others</option>
                   </select>
                   <button
                     type="submit"
