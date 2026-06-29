@@ -1020,13 +1020,13 @@ export default function Signup() {
                     Decrement
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'incrementby5' })}
+                    onClick={() => dispatch({ type: 'increase', amount: 5 })}
                     className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-900/50 hover:border-emerald-700/50 text-emerald-300 hover:text-emerald-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     IncrementBy5
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'decrementby5' })}
+                    onClick={() => dispatch({ type: 'decrease', amount: 5 })}
                     className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 hover:border-rose-700/50 text-rose-300 hover:text-rose-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     DecrementBy5

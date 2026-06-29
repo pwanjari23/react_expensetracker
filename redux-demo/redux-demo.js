@@ -12,14 +12,14 @@ const counterReducer = (state = { counter: 0 }, action) => {
       counter: state.counter - 1,
     };
   }
-  if (action.type === 'INCREMENTBY2') {
+  if (action.type === 'increase') {
     return {
-      counter: state.counter + 2,
+      counter: state.counter + action.amount,
     };
   }
-  if (action.type === 'DECREMENTBY2') {
+  if (action.type === 'decrease') {
     return {
-      counter: state.counter - 2,
+      counter: state.counter - action.amount,
     };
   }
   return state;
@@ -49,10 +49,10 @@ store.dispatch({ type: 'increment' });
 console.log("--- Dispatching 'decrement' ---");
 store.dispatch({ type: 'decrement' });
 
-// Dispatch INCREMENTBY2 action
-console.log("--- Dispatching 'INCREMENTBY2' ---");
-store.dispatch({ type: 'INCREMENTBY2' });
+// Dispatch increase by 2 (optimized way)
+console.log("--- Dispatching 'increase' with payload 2 ---");
+store.dispatch({ type: 'increase', amount: 2 });
 
-// Dispatch DECREMENTBY2 action
-console.log("--- Dispatching 'DECREMENTBY2' ---");
-store.dispatch({ type: 'DECREMENTBY2' });
+// Dispatch decrease by 2 (optimized way)
+console.log("--- Dispatching 'decrease' with payload 2 ---");
+store.dispatch({ type: 'decrease', amount: 2 });
