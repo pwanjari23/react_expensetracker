@@ -17,6 +17,12 @@ export default function Signup() {
   const [profileBannerDismissed, setProfileBannerDismissed] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
 
+  // Email verification states
+  const [verifyEmailLoading, setVerifyEmailLoading] = useState(false);
+  const [verifyEmailSent, setVerifyEmailSent] = useState(false);
+  const [verifyEmailError, setVerifyEmailError] = useState("");
+  const [recheckingVerification, setRecheckingVerification] = useState(false);
+
   // Password strength calculation
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: "Empty", color: "bg-slate-700" });
 
@@ -55,7 +61,7 @@ export default function Signup() {
   // ─── Helper: Fetch user profile from Firebase REST API using idToken ───────
   const fetchProfileFromFirebase = async (firebaseUser) => {
     try {
-      const idToken = await firebaseUser.getIdToken();
+      const idToken = await firebaseUser.getIdToken(/* forceRefresh */ true);
       const res = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${import.meta.env.VITE_FIREBASE_API_KEY}`,
         {
@@ -72,6 +78,8 @@ export default function Signup() {
           email: u.email,
           displayName: u.displayName || null,
           photoURL: u.photoUrl || null,
+          emailVerified: u.emailVerified || false,
+          _idToken: idToken, // cache for verification calls
         };
       }
     } catch (err) {
@@ -83,6 +91,7 @@ export default function Signup() {
       email: firebaseUser.email,
       displayName: firebaseUser.displayName || null,
       photoURL: firebaseUser.photoURL || null,
+      emailVerified: firebaseUser.emailVerified || false,
     };
   };
 
@@ -106,6 +115,100 @@ export default function Signup() {
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ─── Send email verification via Firebase REST API (accounts:sendOobCode) ─────
+  const sendVerificationEmail = async () => {
+    setVerifyEmailLoading(true);
+    setVerifyEmailError("");
+    setVerifyEmailSent(false);
+
+    try {
+      if (isDummyConfig || !auth || !auth.currentUser) {
+        // DEMO MOCK MODE
+        await new Promise((r) => setTimeout(r, 1000));
+        setVerifyEmailSent(true);
+        return;
+      }
+
+      // Always get a fresh idToken before sending
+      const idToken = await auth.currentUser.getIdToken(true);
+
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${import.meta.env.VITE_FIREBASE_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestType: "VERIFY_EMAIL",
+            idToken,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.error) {
+        // — Handle all documented error codes from the Firebase REST API docs —
+        const code = data.error.message;
+        let readable;
+
+        switch (code) {
+          case "INVALID_ID_TOKEN":
+            readable = "Your session token is invalid or expired. Please sign out and sign back in, then try again.";
+            break;
+          case "USER_NOT_FOUND":
+          case "EMAIL_NOT_FOUND":
+            readable = "No account was found for this email. The account may have been deleted.";
+            break;
+          case "USER_DISABLED":
+            readable = "Your account has been disabled by an administrator. Please contact support.";
+            break;
+          case "TOO_MANY_REQUESTS":
+            readable = "Too many requests. Firebase has temporarily blocked this action. Please wait a few minutes and try again.";
+            break;
+          case "MISSING_EMAIL":
+            readable = "No email address is associated with this account.";
+            break;
+          case "RESET_PASSWORD_EXCEED_LIMIT":
+            readable = "Too many email verification requests. Please wait before requesting another.";
+            break;
+          default:
+            readable = data.error.message || "Failed to send verification email. Please try again.";
+        }
+
+        setVerifyEmailError(readable);
+        return;
+      }
+
+      // Success — email sent
+      setVerifyEmailSent(true);
+      console.log("Verification email sent to:", data.email);
+
+    } catch (err) {
+      console.error("sendVerificationEmail error:", err);
+      setVerifyEmailError("A network error occurred. Please check your connection and try again.");
+    } finally {
+      setVerifyEmailLoading(false);
+    }
+  };
+
+  // ─── Re-check email verification status from Firebase REST API ────────────
+  const recheckEmailVerification = async () => {
+    if (!auth || !auth.currentUser) return;
+    setRecheckingVerification(true);
+    try {
+      const freshProfile = await fetchProfileFromFirebase(auth.currentUser);
+      setUser(freshProfile);
+      if (freshProfile.emailVerified) {
+        setVerifyEmailSent(false);
+        setVerifyEmailError("");
+      }
+    } catch (err) {
+      console.error("recheckEmailVerification error:", err);
+    } finally {
+      setRecheckingVerification(false);
+    }
+  };
 
   // ─── Calculate password strength ─────────────────────────────────────────
   useEffect(() => {
@@ -363,6 +466,44 @@ export default function Signup() {
               <span className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 max-w-[150px] truncate">
                 {user.displayName || user.email}
               </span>
+              {/* Email Verification Button (desktop, unverified only) */}
+              {!user.emailVerified && (
+                <button
+                  id="verify-email-btn"
+                  onClick={sendVerificationEmail}
+                  disabled={verifyEmailLoading || verifyEmailSent}
+                  className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition border ${
+                    verifyEmailSent
+                      ? "bg-emerald-950/30 border-emerald-800/40 text-emerald-400 cursor-default"
+                      : "bg-rose-950/30 border-rose-900/50 text-rose-400 hover:border-rose-700/60 hover:text-rose-300 cursor-pointer active:scale-95"
+                  }`}
+                  title="Your email is not verified. Click to send a verification link."
+                >
+                  {verifyEmailLoading ? (
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : verifyEmailSent ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                  )}
+                  <span>{verifyEmailSent ? "Email Sent!" : "Verify Email"}</span>
+                </button>
+              )}
+              {user.emailVerified && (
+                <span className="hidden sm:flex items-center space-x-1 text-xs font-bold text-emerald-400 bg-emerald-950/20 border border-emerald-800/30 rounded-lg px-2.5 py-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <span>Verified</span>
+                </span>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-4 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/30 border border-rose-900/50 hover:border-rose-700/60 rounded-lg transition"
@@ -396,10 +537,104 @@ export default function Signup() {
             </button>
           </div>
         )}
+        {/* Email Verification banner (mobile) */}
+        {!user.emailVerified && (
+          <div className="sm:hidden mx-4 mt-2 flex items-center space-x-3 bg-rose-950/30 border border-rose-800/40 rounded-2xl px-4 py-3 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-rose-400 flex-shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+            </svg>
+            <span className="text-xs text-rose-300 flex-1">
+              Email not verified.{" "}
+              <button
+                onClick={sendVerificationEmail}
+                disabled={verifyEmailLoading || verifyEmailSent}
+                className="text-indigo-400 font-bold underline disabled:opacity-50"
+              >
+                {verifyEmailSent ? "Sent!" : "Verify now"}
+              </button>
+            </span>
+          </div>
+        )}
         <main className="max-w-7xl mx-auto px-6 py-8 w-full grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 z-10">
           
           {/* Left Column: Stat Cards and Add Transaction Form */}
           <div className="lg:col-span-2 space-y-6">
+
+            {/* ── Email Verification Alert Card (desktop, full width inside left col) ── */}
+            {!user.emailVerified && (
+              <div className="bg-rose-950/20 border border-rose-900/40 rounded-2xl p-4 backdrop-blur-sm animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start space-x-3">
+                    <div className="h-8 w-8 rounded-lg bg-rose-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-rose-400">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-rose-300">Email Not Verified</div>
+                      <div className="text-xs text-rose-400/80 mt-0.5">
+                        {verifyEmailSent
+                          ? `A verification link has been sent to ${user.email}. Check your inbox and click the link to verify.`
+                          : `Verify your email address to secure your account and enable password recovery.`}
+                      </div>
+                      {/* Error message */}
+                      {verifyEmailError && (
+                        <div className="mt-2 text-xs text-rose-300 bg-rose-950/40 border border-rose-900/30 rounded-lg px-3 py-2">
+                          ⚠ {verifyEmailError}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                    {verifyEmailSent && (
+                      <button
+                        id="recheck-verification-btn"
+                        onClick={recheckEmailVerification}
+                        disabled={recheckingVerification}
+                        className="flex items-center space-x-1.5 px-3 py-2 text-xs font-bold text-emerald-400 bg-emerald-950/30 border border-emerald-800/40 hover:border-emerald-700/50 rounded-lg transition disabled:opacity-50"
+                      >
+                        {recheckingVerification ? (
+                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                        )}
+                        <span>{recheckingVerification ? "Checking..." : "I've verified, check status"}</span>
+                      </button>
+                    )}
+                    {!verifyEmailSent && (
+                      <button
+                        id="send-verification-email-btn"
+                        onClick={sendVerificationEmail}
+                        disabled={verifyEmailLoading}
+                        className="flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:opacity-90 rounded-lg transition shadow-md shadow-rose-900/20 disabled:opacity-50 active:scale-[0.98]"
+                      >
+                        {verifyEmailLoading ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            <span>Sending...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                            </svg>
+                            <span>Verify Email</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Realtime Stats Display */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
