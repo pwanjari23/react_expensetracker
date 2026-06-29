@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { counterActions } from "../store/index";
+import { counterActions, authActions, expensesActions } from "../store/index";
 import { auth, isDummyConfig } from "../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import CompleteProfile from "./CompleteProfile";
@@ -35,7 +35,10 @@ export default function Signup() {
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: "Empty", color: "bg-slate-700" });
 
   // Post-Signup Dashboard states
-  const [transactions, setTransactions] = useState([]);
+  const transactions = useSelector((state) => state.expenses.expenses);
+  const reduxToken = useSelector((state) => state.auth.token);
+  const reduxUserId = useSelector((state) => state.auth.userId);
+
   const [txName, setTxName] = useState("");
   const [txAmount, setTxAmount] = useState("");
   const [txCategory, setTxCategory] = useState("Food");
@@ -117,6 +120,14 @@ export default function Signup() {
         setSuccess(true);
         // Reset banner dismissal so it re-evaluates based on fresh profile data
         setProfileBannerDismissed(false);
+        try {
+          const token = await firebaseUser.getIdToken();
+          dispatch(authActions.login({ token, userId: firebaseUser.uid }));
+        } catch (tokenErr) {
+          console.warn("Failed to retrieve token:", tokenErr);
+        }
+      } else {
+        dispatch(authActions.logout());
       }
       setAuthChecking(false);
     });
@@ -201,12 +212,12 @@ export default function Signup() {
   };
 
   // ─── Fetch expenses from Firebase Realtime Database via REST API ───────────
-  const fetchExpenses = async (uid) => {
-    if (isDummyConfig || !auth || !auth.currentUser) return;
+  const fetchExpenses = async (uid, tokenToUse) => {
+    const token = tokenToUse || reduxToken;
+    if (!token) return;
     try {
-      const idToken = await auth.currentUser.getIdToken(true);
       const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${token}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Failed to fetch: ${res.status}`);
@@ -220,17 +231,16 @@ export default function Signup() {
           category: data[key].category,
           date: data[key].date || "Today",
         }));
-        setTransactions(loadedExpenses.reverse());
+        dispatch(expensesActions.setExpenses(loadedExpenses.reverse()));
       } else {
-        setTransactions([]);
+        dispatch(expensesActions.setExpenses([]));
       }
     } catch (err) {
       console.error("Error fetching expenses:", err);
       // Fallback try: standard database URL format
       try {
-        const idToken = await auth.currentUser.getIdToken(true);
         const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${token}`;
         const res = await fetch(fallbackUrl);
         if (res.ok) {
           const data = await res.json();
@@ -242,7 +252,7 @@ export default function Signup() {
               category: data[key].category,
               date: data[key].date || "Today",
             }));
-            setTransactions(loadedExpenses.reverse());
+            dispatch(expensesActions.setExpenses(loadedExpenses.reverse()));
           }
         }
       } catch (e) {
@@ -251,15 +261,15 @@ export default function Signup() {
     }
   };
 
-  // Fetch expenses when user uid is loaded / changed (login or refresh)
+  // Fetch expenses when user uid or token is loaded/changed in Redux store
   useEffect(() => {
-    if (user && user.uid) {
-      fetchExpenses(user.uid);
+    if (reduxUserId && reduxToken) {
+      fetchExpenses(reduxUserId, reduxToken);
     } else {
-      setTransactions([]);
+      dispatch(expensesActions.setExpenses([]));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid]);
+  }, [reduxUserId, reduxToken]);
 
   // ─── Re-check email verification status from Firebase REST API ────────────
   const recheckEmailVerification = async () => {
@@ -342,6 +352,7 @@ export default function Signup() {
         await new Promise((resolve) => setTimeout(resolve, 1000));
         setUser({ email: email.toLowerCase(), isMock: true });
         setSuccess(true);
+        dispatch(authActions.login({ token: "dummy-token", userId: "dummy-uid" }));
         console.log("User has successfully signed up.");
       } else {
         if (isLogin) {
@@ -350,12 +361,16 @@ export default function Signup() {
           const profile = await fetchProfileFromFirebase(userCredential.user);
           setUser(profile);
           setSuccess(true);
+          const token = await userCredential.user.getIdToken();
+          dispatch(authActions.login({ token, userId: userCredential.user.uid }));
         } else {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           // New user — no profile yet, set basic info
           const profile = await fetchProfileFromFirebase(userCredential.user);
           setUser(profile);
           setSuccess(true);
+          const token = await userCredential.user.getIdToken();
+          dispatch(authActions.login({ token, userId: userCredential.user.uid }));
           console.log("User has successfully signed up.");
         }
       }
@@ -451,6 +466,7 @@ export default function Signup() {
   const handleLogout = async () => {
     setLoading(true);
     try {
+      dispatch(authActions.logout());
       // 1. Sign out from Firebase (also clears Firebase-managed localStorage entries)
       if (!isDummyConfig && auth) {
         await signOut(auth);
@@ -519,13 +535,14 @@ export default function Signup() {
       date: originalTx ? originalTx.date : new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     };
 
+    const token = reduxToken;
+    const uid = reduxUserId;
+
     if (editingTxId) {
       // ─── UPDATE TRANSACTION (PUT) ───
-      if (isDummyConfig || !auth || !auth.currentUser) {
+      if (isDummyConfig || !token || !uid) {
         // Fallback for mock mode
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
-        );
+        dispatch(expensesActions.updateExpense({ id: editingTxId, ...newExpense }));
         setEditingTxId(null);
         setTxName("");
         setTxAmount("");
@@ -533,10 +550,8 @@ export default function Signup() {
       }
 
       try {
-        const idToken = await auth.currentUser.getIdToken(true);
-        const uid = auth.currentUser.uid;
         const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-        const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${idToken}`;
+        const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${token}`;
 
         const res = await fetch(url, {
           method: "PUT",
@@ -549,9 +564,7 @@ export default function Signup() {
         }
 
         // Success PUT response -> update state
-        setTransactions((prev) =>
-          prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
-        );
+        dispatch(expensesActions.updateExpense({ id: editingTxId, ...newExpense }));
         setEditingTxId(null);
         setTxName("");
         setTxAmount("");
@@ -559,10 +572,8 @@ export default function Signup() {
         console.error("Error updating expense to RTDB:", err);
         // Fallback try: standard database URL format
         try {
-          const idToken = await auth.currentUser.getIdToken(true);
-          const uid = auth.currentUser.uid;
           const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-          const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${idToken}`;
+          const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${editingTxId}.json?auth=${token}`;
 
           const res = await fetch(fallbackUrl, {
             method: "PUT",
@@ -571,9 +582,7 @@ export default function Signup() {
           });
 
           if (res.ok) {
-            setTransactions((prev) =>
-              prev.map((t) => (t.id === editingTxId ? { ...t, ...newExpense } : t))
-            );
+            dispatch(expensesActions.updateExpense({ id: editingTxId, ...newExpense }));
             setEditingTxId(null);
             setTxName("");
             setTxAmount("");
@@ -586,23 +595,21 @@ export default function Signup() {
     }
 
     // ─── CREATE TRANSACTION (POST) ───
-    if (isDummyConfig || !auth || !auth.currentUser) {
+    if (isDummyConfig || !token || !uid) {
       // Fallback for mock mode
       const mockTx = {
-        id: Date.now(),
+        id: Date.now().toString(),
         ...newExpense,
       };
-      setTransactions((prev) => [mockTx, ...prev]);
+      dispatch(expensesActions.addExpense(mockTx));
       setTxName("");
       setTxAmount("");
       return;
     }
 
     try {
-      const idToken = await auth.currentUser.getIdToken(true);
-      const uid = auth.currentUser.uid;
       const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${token}`;
 
       const res = await fetch(url, {
         method: "POST",
@@ -621,7 +628,7 @@ export default function Signup() {
           id: data.name,
           ...newExpense,
         };
-        setTransactions((prev) => [savedTx, ...prev]);
+        dispatch(expensesActions.addExpense(savedTx));
         setTxName("");
         setTxAmount("");
       }
@@ -629,10 +636,8 @@ export default function Signup() {
       console.error("Error saving expense to RTDB:", err);
       // Fallback try: standard database URL format
       try {
-        const idToken = await auth.currentUser.getIdToken(true);
-        const uid = auth.currentUser.uid;
         const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${token}`;
 
         const res = await fetch(fallbackUrl, {
           method: "POST",
@@ -647,7 +652,7 @@ export default function Signup() {
               id: data.name,
               ...newExpense,
             };
-            setTransactions((prev) => [savedTx, ...prev]);
+            dispatch(expensesActions.addExpense(savedTx));
             setTxName("");
             setTxAmount("");
           }
@@ -659,17 +664,18 @@ export default function Signup() {
   };
 
   const deleteExpense = async (id) => {
-    if (isDummyConfig || !auth || !auth.currentUser) {
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+    const token = reduxToken;
+    const uid = reduxUserId;
+
+    if (isDummyConfig || !token || !uid) {
+      dispatch(expensesActions.deleteExpense(id));
       console.log("Expense successfuly deleted");
       return;
     }
 
     try {
-      const idToken = await auth.currentUser.getIdToken(true);
-      const uid = auth.currentUser.uid;
       const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${id}.json?auth=${idToken}`;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}/${id}.json?auth=${token}`;
 
       const res = await fetch(url, {
         method: "DELETE",
@@ -679,23 +685,21 @@ export default function Signup() {
         throw new Error(`Failed to delete: ${res.status}`);
       }
 
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      dispatch(expensesActions.deleteExpense(id));
       console.log("Expense successfuly deleted");
     } catch (err) {
       console.error("Error deleting expense:", err);
       // Fallback try: standard database URL format
       try {
-        const idToken = await auth.currentUser.getIdToken(true);
-        const uid = auth.currentUser.uid;
         const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${id}.json?auth=${idToken}`;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}/${id}.json?auth=${token}`;
 
         const res = await fetch(fallbackUrl, {
           method: "DELETE",
         });
 
         if (res.ok) {
-          setTransactions((prev) => prev.filter((t) => t.id !== id));
+          dispatch(expensesActions.deleteExpense(id));
           console.log("Expense successfuly deleted");
         }
       } catch (e) {
@@ -1060,6 +1064,29 @@ export default function Signup() {
                 <div className="absolute top-0 right-0 h-full w-1.5 bg-rose-500"></div>
               </div>
             </div>
+
+            {/* Premium Activation Banner */}
+            {Math.abs(totalExpenses) > 10000 && (
+              <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/10 border border-amber-500/30 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+                <div className="flex items-start space-x-3">
+                  <div className="h-9 w-9 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-lg">🏆</span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-300">Premium Features Unlocked!</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Your monthly expenses exceeded 10,000. Activate Premium now to enjoy advanced controls.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  id="activate-premium-btn"
+                  onClick={() => alert("Premium Activated! Enjoy your premium experience.")}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 flex-shrink-0 cursor-pointer"
+                >
+                  Activate Premium
+                </button>
+              </div>
+            )}
 
             {/* Daily Expenses Tracker Form */}
             <div className="bg-slate-950/30 border border-slate-900 rounded-2xl p-6 backdrop-blur-md">

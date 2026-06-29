@@ -1,55 +1,18 @@
-import { createSlice, configureStore } from '@reduxjs/toolkit';
+import { configureStore } from '@reduxjs/toolkit';
+import counterReducer from './counter';
+import authReducer from './auth';
+import expensesReducer from './expenses';
 
-// 1. Counter Slice
-const initialCounterState = { counter: 0, showCounter: true };
-
-const counterSlice = createSlice({
-  name: 'counter',
-  initialState: initialCounterState,
-  reducers: {
-    increment(state) {
-      state.counter++;
-    },
-    decrement(state) {
-      state.counter--;
-    },
-    increase(state, action) {
-      state.counter = state.counter + action.payload;
-    },
-    decrease(state, action) {
-      state.counter = state.counter - action.payload;
-    },
-    toggleCounter(state) {
-      state.showCounter = !state.showCounter;
-    },
-  },
-});
-
-// 2. Auth Slice
-const initialAuthState = { isAuthenticated: false };
-
-const authSlice = createSlice({
-  name: 'authentication',
-  initialState: initialAuthState,
-  reducers: {
-    login(state) {
-      state.isAuthenticated = true;
-    },
-    logout(state) {
-      state.isAuthenticated = false;
-    },
-  },
-});
-
-// 3. Configure Store (combining slices)
 const store = configureStore({
   reducer: {
-    counter: counterSlice.reducer,
-    auth: authSlice.reducer,
+    counter: counterReducer,
+    auth: authReducer,
+    expenses: expensesReducer,
   },
 });
 
-export const counterActions = counterSlice.actions;
-export const authActions = authSlice.actions;
+export { counterActions } from './counter';
+export { authActions } from './auth';
+export { expensesActions } from './expenses';
 
 export default store;
