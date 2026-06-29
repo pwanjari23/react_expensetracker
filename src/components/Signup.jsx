@@ -32,12 +32,8 @@ export default function Signup() {
   // Password strength calculation
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: "Empty", color: "bg-slate-700" });
 
-  // Post-Signup Mock Dashboard states
-  const [transactions, setTransactions] = useState([
-    { id: 1, name: "Groceries Purchases", amount: -120.50, category: "Food", date: "June 24" },
-    { id: 2, name: "Freelance UI Project", amount: 1500.00, category: "Income", date: "June 23" },
-    { id: 3, name: "Netflix Subscription", amount: -15.99, category: "Entertainment", date: "June 21" }
-  ]);
+  // Post-Signup Dashboard states
+  const [transactions, setTransactions] = useState([]);
   const [txName, setTxName] = useState("");
   const [txAmount, setTxAmount] = useState("");
   const [txCategory, setTxCategory] = useState("Food");
@@ -197,6 +193,67 @@ export default function Signup() {
       setVerifyEmailLoading(false);
     }
   };
+
+  // ─── Fetch expenses from Firebase Realtime Database via REST API ───────────
+  const fetchExpenses = async (uid) => {
+    if (isDummyConfig || !auth || !auth.currentUser) return;
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+      const data = await res.json();
+      if (data) {
+        const loadedExpenses = Object.keys(data).map((key) => ({
+          id: key,
+          name: data[key].name,
+          amount: parseFloat(data[key].amount),
+          category: data[key].category,
+          date: data[key].date || "Today",
+        }));
+        setTransactions(loadedExpenses.reverse());
+      } else {
+        setTransactions([]);
+      }
+    } catch (err) {
+      console.error("Error fetching expenses:", err);
+      // Fallback try: standard database URL format
+      try {
+        const idToken = await auth.currentUser.getIdToken(true);
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+        const res = await fetch(fallbackUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data) {
+            const loadedExpenses = Object.keys(data).map((key) => ({
+              id: key,
+              name: data[key].name,
+              amount: parseFloat(data[key].amount),
+              category: data[key].category,
+              date: data[key].date || "Today",
+            }));
+            setTransactions(loadedExpenses.reverse());
+          }
+        }
+      } catch (e) {
+        console.error("Fallback fetching failed:", e);
+      }
+    }
+  };
+
+  // Fetch expenses when user uid is loaded / changed (login or refresh)
+  useEffect(() => {
+    if (user && user.uid) {
+      fetchExpenses(user.uid);
+    } else {
+      setTransactions([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   // ─── Re-check email verification status from Firebase REST API ────────────
   const recheckEmailVerification = async () => {
@@ -438,19 +495,95 @@ export default function Signup() {
     }
   };
 
-  const addTransaction = (e) => {
+  const addTransaction = async (e) => {
     e.preventDefault();
     if (!txName.trim() || !txAmount) return;
-    const newTx = {
-      id: Date.now(),
-      name: txName,
-      amount: parseFloat(txAmount),
+
+    let parsedAmount = parseFloat(txAmount);
+    // If it is not Salary, treat as an expense (negative)
+    if (txCategory !== "Salary" && parsedAmount > 0) {
+      parsedAmount = -parsedAmount;
+    } else if (txCategory === "Salary" && parsedAmount < 0) {
+      parsedAmount = Math.abs(parsedAmount);
+    }
+
+    const newExpense = {
+      name: txName.trim(),
+      amount: parsedAmount,
       category: txCategory,
-      date: "Today"
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     };
-    setTransactions([newTx, ...transactions]);
-    setTxName("");
-    setTxAmount("");
+
+    if (isDummyConfig || !auth || !auth.currentUser) {
+      // Fallback for mock mode
+      const mockTx = {
+        id: Date.now(),
+        ...newExpense,
+      };
+      setTransactions((prev) => [mockTx, ...prev]);
+      setTxName("");
+      setTxAmount("");
+      return;
+    }
+
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      const uid = auth.currentUser.uid;
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const url = `https://${projectId}-default-rtdb.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newExpense),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to save: ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data && data.name) {
+        // 200/201 Success from backend -> update state/screen
+        const savedTx = {
+          id: data.name,
+          ...newExpense,
+        };
+        setTransactions((prev) => [savedTx, ...prev]);
+        setTxName("");
+        setTxAmount("");
+      }
+    } catch (err) {
+      console.error("Error saving expense to RTDB:", err);
+      // Fallback try: standard database URL format
+      try {
+        const idToken = await auth.currentUser.getIdToken(true);
+        const uid = auth.currentUser.uid;
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+        const fallbackUrl = `https://${projectId}.firebaseio.com/expenses/${uid}.json?auth=${idToken}`;
+
+        const res = await fetch(fallbackUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newExpense),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.name) {
+            const savedTx = {
+              id: data.name,
+              ...newExpense,
+            };
+            setTransactions((prev) => [savedTx, ...prev]);
+            setTxName("");
+            setTxAmount("");
+          }
+        }
+      } catch (e) {
+        console.error("Fallback saving failed:", e);
+      }
+    }
   };
 
   const totalBalance = transactions.reduce((acc, curr) => acc + curr.amount, 12450.00);
