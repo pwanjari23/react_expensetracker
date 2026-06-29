@@ -1,18 +1,72 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { cartActions } from '../store/index';
+import { cartActions, uiActions } from '../store/index';
+import Notification from './UI/Notification';
 
 const DUMMY_PRODUCTS = [
   { id: 'p1', price: 6, title: 'Test Item 1', description: 'This is a first product - amazing!' },
   { id: 'p2', price: 8, title: 'Test Item 2', description: 'This is a second product - wonderful!' },
 ];
 
+let isInitial = true;
+
 export default function CartDemoApp() {
   const dispatch = useDispatch();
+  const cart = useSelector((state) => state.cart);
   const cartIsVisible = useSelector((state) => state.cart.cartIsVisible);
   const cartItems = useSelector((state) => state.cart.items);
+  const notification = useSelector((state) => state.ui.notification);
 
   const totalQuantity = cartItems.reduce((val, item) => val + item.quantity, 0);
+
+  // Send Cart Data to Firebase on Cart Changes
+  useEffect(() => {
+    const sendCartData = async () => {
+      dispatch(
+        uiActions.showNotification({
+          status: 'pending',
+          title: 'Sending...',
+          message: 'Sending cart data!',
+        })
+      );
+      
+      const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+      const response = await fetch(
+        `https://${projectId}-default-rtdb.firebaseio.com/cart.json`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(cart),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Sending cart data failed.');
+      }
+
+      dispatch(
+        uiActions.showNotification({
+          status: 'success',
+          title: 'Success!',
+          message: 'Sent cart data successfully!',
+        })
+      );
+    };
+
+    if (isInitial) {
+      isInitial = false;
+      return;
+    }
+
+    sendCartData().catch((error) => {
+      dispatch(
+        uiActions.showNotification({
+          status: 'error',
+          title: 'Error!',
+          message: 'Sending cart data failed!',
+        })
+      );
+    });
+  }, [cart, dispatch]);
 
   const handleToggleCart = () => {
     dispatch(cartActions.toggle());
@@ -50,6 +104,17 @@ export default function CartDemoApp() {
           </span>
         </button>
       </header>
+
+      {/* Conditionally Render Global Status Notification */}
+      {notification && (
+        <div className="max-w-lg mx-auto w-full px-4 mt-6">
+          <Notification
+            status={notification.status}
+            title={notification.title}
+            message={notification.message}
+          />
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="max-w-lg mx-auto w-full px-4 mt-12 flex-1 flex flex-col space-y-6">

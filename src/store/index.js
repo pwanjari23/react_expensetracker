@@ -4,6 +4,7 @@ import authReducer from './auth';
 import expensesReducer from './expenses';
 import themeReducer from './theme';
 import cartReducer from './cart';
+import uiReducer from './ui';
 
 const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ const store = configureStore({
     expenses: expensesReducer,
     theme: themeReducer,
     cart: cartReducer,
+    ui: uiReducer,
   },
 });
 
@@ -20,5 +22,6 @@ export { authActions } from './auth';
 export { expensesActions } from './expenses';
 export { themeActions } from './theme';
 export { cartActions } from './cart';
+export { uiActions } from './ui';
 
 export default store;
