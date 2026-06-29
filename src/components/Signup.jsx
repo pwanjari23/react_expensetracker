@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { auth, isDummyConfig } from "../firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import CompleteProfile from "./CompleteProfile";
 
 export default function Signup() {
@@ -15,6 +15,7 @@ export default function Signup() {
   const [user, setUser] = useState(null);
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [profileBannerDismissed, setProfileBannerDismissed] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
 
   // Password strength calculation
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: "Empty", color: "bg-slate-700" });
@@ -51,7 +52,62 @@ export default function Signup() {
   };
 
 
-  // Calculate password strength
+  // ─── Helper: Fetch user profile from Firebase REST API using idToken ───────
+  const fetchProfileFromFirebase = async (firebaseUser) => {
+    try {
+      const idToken = await firebaseUser.getIdToken();
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${import.meta.env.VITE_FIREBASE_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        }
+      );
+      const data = await res.json();
+      if (data.users && data.users[0]) {
+        const u = data.users[0];
+        return {
+          uid: u.localId,
+          email: u.email,
+          displayName: u.displayName || null,
+          photoURL: u.photoUrl || null,
+        };
+      }
+    } catch (err) {
+      console.error("Failed to fetch profile from Firebase REST API:", err);
+    }
+    // Fallback to SDK user object
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName || null,
+      photoURL: firebaseUser.photoURL || null,
+    };
+  };
+
+  // ─── Auto-restore session on page refresh via onAuthStateChanged ─────────
+  useEffect(() => {
+    if (isDummyConfig || !auth) {
+      setAuthChecking(false);
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User already logged in — fetch fresh profile data from Firebase REST API
+        const profile = await fetchProfileFromFirebase(firebaseUser);
+        setUser(profile);
+        setSuccess(true);
+        // Reset banner dismissal so it re-evaluates based on fresh profile data
+        setProfileBannerDismissed(false);
+      }
+      setAuthChecking(false);
+    });
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Calculate password strength ─────────────────────────────────────────
   useEffect(() => {
     if (!password) {
       setPasswordStrength({ score: 0, label: "Empty", color: "bg-slate-700 w-0" });
@@ -120,11 +176,15 @@ export default function Signup() {
         // LIVE FIREBASE AUTH
         if (isLogin) {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          setUser(userCredential.user);
+          // Fetch full profile data from Firebase REST API
+          const profile = await fetchProfileFromFirebase(userCredential.user);
+          setUser(profile);
           setSuccess(true);
         } else {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          setUser(userCredential.user);
+          // New user — no profile yet, set basic info
+          const profile = await fetchProfileFromFirebase(userCredential.user);
+          setUser(profile);
           setSuccess(true);
           console.log("User has successfully signed up.");
         }
@@ -171,6 +231,8 @@ export default function Signup() {
       setSuccess(false);
       setPassword("");
       setConfirmPassword("");
+      setProfileBannerDismissed(false);
+      setShowCompleteProfile(false);
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
@@ -200,15 +262,47 @@ export default function Signup() {
   // Check if profile is incomplete (no displayName set)
   const isProfileIncomplete = !user?.displayName;
 
+  // ─── Auth-checking loading screen ─────────────────────────────────────────
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-[#070b13] flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/30 animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 text-slate-950">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+            </svg>
+          </div>
+          <div className="flex items-center space-x-2">
+            <svg className="animate-spin h-4 w-4 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="text-sm text-slate-400 font-medium">Restoring your session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // COMPLETE PROFILE PAGE VIEW
   if (showCompleteProfile && user) {
     return (
       <CompleteProfile
         user={user}
-        onProfileUpdated={(updatedData) => {
+        onProfileUpdated={async (updatedData) => {
+          // Merge updated data immediately for instant UI feedback
           setUser((prev) => ({ ...prev, ...updatedData }));
           setShowCompleteProfile(false);
           setProfileBannerDismissed(true);
+          // Re-fetch from Firebase REST API to ensure state matches the server
+          if (!isDummyConfig && auth && auth.currentUser) {
+            try {
+              const freshProfile = await fetchProfileFromFirebase(auth.currentUser);
+              setUser(freshProfile);
+            } catch (e) {
+              console.warn("Could not re-fetch profile after update:", e);
+            }
+          }
         }}
         onCancel={() => {
           setShowCompleteProfile(false);
