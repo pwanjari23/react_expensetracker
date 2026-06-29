@@ -19,6 +19,7 @@ export default function CartDemoApp() {
   };
 
   const handleAddProduct = (product) => {
+    console.log("Adding product to cart:", product.title);
     dispatch(cartActions.addItem({
       id: product.id,
       title: product.title,
@@ -27,6 +28,7 @@ export default function CartDemoApp() {
   };
 
   const handleRemoveProduct = (id) => {
+    console.log("Removing product unit from cart (id):", id);
     dispatch(cartActions.removeItem(id));
   };
 
