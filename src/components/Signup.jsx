@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { counterActions } from "../store/index";
 import { auth, isDummyConfig } from "../firebase";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 import CompleteProfile from "./CompleteProfile";
@@ -40,7 +41,7 @@ export default function Signup() {
   const [txCategory, setTxCategory] = useState("Food");
   const [editingTxId, setEditingTxId] = useState(null);
 
-  const reduxCounter = useSelector((state) => state.counter);
+  const reduxCounter = useSelector((state) => state.counter.counter);
   const dispatch = useDispatch();
 
   const [savingsGoal, setSavingsGoal] = useState({
@@ -1008,25 +1009,25 @@ export default function Signup() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => dispatch({ type: 'increment' })}
+                    onClick={() => dispatch(counterActions.increment())}
                     className="px-3 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/50 hover:border-indigo-700/50 text-indigo-300 hover:text-indigo-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     Increment
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'decrement' })}
+                    onClick={() => dispatch(counterActions.decrement())}
                     className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     Decrement
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'increase', amount: 5 })}
+                    onClick={() => dispatch(counterActions.increase(5))}
                     className="px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-900/50 hover:border-emerald-700/50 text-emerald-300 hover:text-emerald-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     IncrementBy5
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'decrease', amount: 5 })}
+                    onClick={() => dispatch(counterActions.decrease(5))}
                     className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-900/50 hover:border-rose-700/50 text-rose-300 hover:text-rose-200 font-semibold rounded-xl text-[11px] transition active:scale-95"
                   >
                     DecrementBy5
