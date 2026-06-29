@@ -115,6 +115,20 @@ export default function CompleteProfile({ user, onProfileUpdated, onCancel }) {
             <span className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 max-w-[150px] truncate">
               {user?.email}
             </span>
+            {/* Logout button */}
+            {onLogout && (
+              <button
+                id="complete-profile-logout-btn"
+                onClick={onLogout}
+                className="flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 rounded-xl transition shadow-md shadow-rose-900/30"
+                title="Logout and return to login page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

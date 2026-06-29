@@ -327,15 +327,47 @@ export default function Signup() {
   const handleLogout = async () => {
     setLoading(true);
     try {
+      // 1. Sign out from Firebase (also clears Firebase-managed localStorage entries)
       if (!isDummyConfig && auth) {
         await signOut(auth);
       }
+
+      // 2. Explicitly purge any Firebase / idToken keys from localStorage
+      //    Firebase SDK stores auth state under keys like "firebase:authUser:[apiKey]:[appName]"
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (
+            key &&
+            (key.startsWith("firebase:") ||
+              key.startsWith("firebaseLocalStorage") ||
+              key.includes("idToken") ||
+              key.includes("authUser") ||
+              key.includes("firebaseui"))
+          ) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+        // Also clear sessionStorage of any auth data
+        sessionStorage.clear();
+      } catch (storageErr) {
+        console.warn("Could not fully clear storage:", storageErr);
+      }
+
+      // 3. Reset all component state → redirects user back to the Login page
       setUser(null);
       setSuccess(false);
+      setEmail("");
       setPassword("");
       setConfirmPassword("");
+      setError("");
       setProfileBannerDismissed(false);
       setShowCompleteProfile(false);
+      setVerifyEmailSent(false);
+      setVerifyEmailError("");
+      setIsLogin(true); // Open login tab after logout
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
@@ -392,6 +424,7 @@ export default function Signup() {
     return (
       <CompleteProfile
         user={user}
+        onLogout={handleLogout}
         onProfileUpdated={async (updatedData) => {
           // Merge updated data immediately for instant UI feedback
           setUser((prev) => ({ ...prev, ...updatedData }));
@@ -505,10 +538,23 @@ export default function Signup() {
                 </span>
               )}
               <button
+                id="logout-btn"
                 onClick={handleLogout}
-                className="px-4 py-1.5 text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/30 border border-rose-900/50 hover:border-rose-700/60 rounded-lg transition"
+                disabled={loading}
+                className="flex items-center space-x-1.5 px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 rounded-xl transition shadow-md shadow-rose-900/30 disabled:opacity-50"
+                title="Logout and return to login page"
               >
-                Sign Out
+                {loading ? (
+                  <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15" />
+                  </svg>
+                )}
+                <span>{loading ? "Logging out..." : "Logout"}</span>
               </button>
             </div>
           </div>
