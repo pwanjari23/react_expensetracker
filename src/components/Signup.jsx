@@ -23,6 +23,12 @@ export default function Signup() {
   const [verifyEmailError, setVerifyEmailError] = useState("");
   const [recheckingVerification, setRecheckingVerification] = useState(false);
 
+  // Forgot password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+
   // Password strength calculation
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: "Empty", color: "bg-slate-700" });
 
@@ -321,6 +327,63 @@ export default function Signup() {
       setError(readableError);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    setError("");
+    setForgotSuccess(false);
+
+    try {
+      if (isDummyConfig) {
+        await new Promise((r) => setTimeout(r, 1000));
+        setForgotSuccess(true);
+        return;
+      }
+
+      const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${import.meta.env.VITE_FIREBASE_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestType: "PASSWORD_RESET",
+            email: forgotEmail.trim(),
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.error) {
+        const code = data.error.message;
+        let readable;
+        switch (code) {
+          case "INVALID_EMAIL":
+            readable = "The email address is invalid.";
+            break;
+          case "USER_NOT_FOUND":
+            readable = "No user was found with this email address.";
+            break;
+          case "MISSING_EMAIL":
+            readable = "Email address is required.";
+            break;
+          default:
+            readable = data.error.message || "Failed to send password reset email. Please try again.";
+        }
+        setError(readable);
+        return;
+      }
+
+      setForgotSuccess(true);
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      setError("A network error occurred. Please check your connection and try again.");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -985,179 +1048,303 @@ export default function Signup() {
           
           <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden glow-border">
             
-            {/* Interactive Tab Switcher */}
-            <div className="flex bg-slate-950/60 rounded-xl p-1 mb-8 border border-slate-900">
-              <button
-                onClick={() => { setIsLogin(false); setError(""); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                  !isLogin 
-                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                Sign Up
-              </button>
-              <button
-                onClick={() => { setIsLogin(true); setError(""); }}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                  isLogin 
-                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                Log In
-              </button>
-            </div>
-
-            <div className="mb-6 text-center">
-              <h2 className="text-2xl font-black tracking-tight text-white">
-                {isLogin ? "Welcome back" : "Create your account"}
-              </h2>
-              <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
-                {isLogin ? "Login to access your tracker panel" : "Start managing your balances and logs"}
-              </p>
-            </div>
-
-            {/* Error Message banner */}
-            {error && (
-              <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-400 text-xs font-semibold flex items-start space-x-2 animate-shake">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* Main Form */}
-            <form onSubmit={handleAuth} className="space-y-4">
-              
-              {/* Email */}
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.22a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
-                    <path d="m19 8.839-7.903 3.952a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
-                  </svg>
-                </div>
-                <input
-                  type="email"
-                  placeholder="Email Address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
-                  required
-                />
-              </div>
-
-              {/* Password */}
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 focus:outline-none"
-                >
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06L3.28 2.22Zm5.18 5.18 1.94 1.94a2.5 2.5 0 0 0 3.28 3.28l1.62 1.62a7.747 7.747 0 0 0 2.24-2.74.75.75 0 0 0 0-.5c-1.285-2.5-3.86-4.5-7.5-4.5a7.7 7.7 0 0 0-1.58.12ZM10 12.5a2.5 2.5 0 0 1-2.5-2.5c0-.18.019-.356.057-.527L5.358 7.27a7.747 7.747 0 0 0-2.898 2.23.75.75 0 0 0 0 .5c1.285 2.5 3.86 4.5 7.5 4.5a7.733 7.733 0 0 0 2.536-.427l-1.37-1.37c-.365.17-.768.297-1.166.297Z" clipRule="evenodd" />
+            {showForgotPassword ? (
+              <div className="animate-fade-in">
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-black tracking-tight text-white flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-indigo-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
                     </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                      <path fillRule="evenodd" d="M.664 9.505a.75.75 0 0 0 0 .99c1.285 2.5 3.86 4.5 7.5 4.5s6.215-2 7.5-4.5a.75.75 0 0 0 0-.99C14.379 7.005 11.79 5 8 5S1.954 7.005.664 9.505ZM9 10a1 1 0 1 1 2 0 1 1 0 0 1-2 0Z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-
-              {/* Password strength visual indicator (only shown during SignUp) */}
-              {!isLogin && password && (
-                <div className="space-y-1.5 px-0.5">
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-500 font-bold uppercase">Strength</span>
-                    <span className="font-semibold text-slate-300">{passwordStrength.label}</span>
-                  </div>
-                  <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-300 ${passwordStrength.color}`}></div>
-                  </div>
+                    Reset Password
+                  </h2>
+                  <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                    Provide your register email address below. We'll send you a secure link to reset your password.
+                  </p>
                 </div>
-              )}
 
-              {/* Confirm Password (only shown in Signup mode) */}
-              {!isLogin && (
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                {/* Error Banner */}
+                {error && (
+                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-400 text-xs font-semibold flex items-start space-x-2 animate-shake">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                     </svg>
+                    <span>{error}</span>
                   </div>
-                  <input
-                    type="password"
-                    placeholder="Confirm Password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
-                    required={!isLogin}
-                  />
-                </div>
-              )}
+                )}
 
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={!isFormValid || loading}
-                  className={`w-full py-3 px-4 text-xs font-bold text-white rounded-xl transition shadow-lg relative overflow-hidden select-none active:scale-[0.98] ${
-                    isFormValid && !loading
-                      ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 shadow-indigo-600/10 cursor-pointer"
-                      : "bg-slate-900 border border-slate-800 shadow-none cursor-not-allowed opacity-60 text-slate-500"
-                  }`}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                {/* Success Banner */}
+                {forgotSuccess && (
+                  <div className="mb-6 p-3.5 bg-emerald-950/30 border border-emerald-900/40 rounded-2xl text-emerald-400 text-xs font-semibold flex flex-col space-y-1 animate-fade-in">
+                    <div className="flex items-start space-x-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
-                      Verifying details...
+                      <span>Reset email sent successfully!</span>
+                    </div>
+                    <span className="text-[11px] text-emerald-500 pl-6 leading-relaxed">
+                      A password reset link has been dispatched to <strong>{forgotEmail}</strong>. Open the link to update your password, then return here to log in.
                     </span>
-                  ) : isLogin ? (
-                    "Authorize Session"
-                  ) : (
-                    "Initialize Account"
-                  )}
-                </button>
+                  </div>
+                )}
+
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  {/* Email Input */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.22a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                        <path d="m19 8.839-7.903 3.952a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      required
+                      disabled={forgotLoading || forgotSuccess}
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={!forgotEmail.trim() || forgotLoading || forgotSuccess}
+                      className={`w-full py-3 px-4 text-xs font-bold text-white rounded-xl transition shadow-lg relative overflow-hidden select-none active:scale-[0.98] ${
+                        forgotEmail.trim() && !forgotLoading && !forgotSuccess
+                          ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 shadow-indigo-600/10 cursor-pointer"
+                          : "bg-slate-900 border border-slate-800 shadow-none cursor-not-allowed opacity-60 text-slate-500"
+                      }`}
+                    >
+                      {forgotLoading ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Sending link...
+                        </span>
+                      ) : (
+                        "Send Reset Link"
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Back to Login */}
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setForgotEmail("");
+                      setForgotSuccess(false);
+                      setError("");
+                    }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-bold hover:underline transition"
+                  >
+                    Back to Login
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              <>
+                {/* Interactive Tab Switcher */}
+                <div className="flex bg-slate-950/60 rounded-xl p-1 mb-8 border border-slate-900">
+                  <button
+                    onClick={() => { setIsLogin(false); setError(""); }}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      !isLogin 
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    Sign Up
+                  </button>
+                  <button
+                    onClick={() => { setIsLogin(true); setError(""); }}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                      isLogin 
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-600/10" 
+                        : "text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    Log In
+                  </button>
+                </div>
+
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-black tracking-tight text-white">
+                    {isLogin ? "Welcome back" : "Create your account"}
+                  </h2>
+                  <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                    {isLogin ? "Login to access your tracker panel" : "Start managing your balances and logs"}
+                  </p>
+                </div>
+
+                {/* Error Message banner */}
+                {error && (
+                  <div className="mb-6 p-3.5 bg-rose-950/30 border border-rose-900/40 rounded-2xl text-rose-400 text-xs font-semibold flex items-start space-x-2 animate-shake">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 mt-0.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Main Form */}
+                <form onSubmit={handleAuth} className="space-y-4">
+                  
+                  {/* Email */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path d="M3 4a2 2 0 0 0-2 2v1.161l8.441 4.22a1.25 1.25 0 0 0 1.118 0L19 7.162V6a2 2 0 0 0-2-2H3Z" />
+                        <path d="m19 8.839-7.903 3.952a2.75 2.75 0 0 1-2.46 0L1 8.839V14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.839Z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      required
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-10 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 focus:outline-none"
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06L3.28 2.22Zm5.18 5.18 1.94 1.94a2.5 2.5 0 0 0 3.28 3.28l1.62 1.62a7.747 7.747 0 0 0 2.24-2.74.75.75 0 0 0 0-.5c-1.285-2.5-3.86-4.5-7.5-4.5a7.7 7.7 0 0 0-1.58.12ZM10 12.5a2.5 2.5 0 0 1-2.5-2.5c0-.18.019-.356.057-.527L5.358 7.27a7.747 7.747 0 0 0-2.898 2.23.75.75 0 0 0 0 .5c1.285 2.5 3.86 4.5 7.5 4.5a7.733 7.733 0 0 0 2.536-.427l-1.37-1.37c-.365.17-.768.297-1.166.297Z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                          <path fillRule="evenodd" d="M.664 9.505a.75.75 0 0 0 0 .99c1.285 2.5 3.86 4.5 7.5 4.5s6.215-2 7.5-4.5a.75.75 0 0 0 0-.99C14.379 7.005 11.79 5 8 5S1.954 7.005.664 9.505ZM9 10a1 1 0 1 1 2 0 1 1 0 0 1-2 0Z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+
+                  {isLogin && (
+                    <div className="flex justify-end px-0.5">
+                      <button
+                        id="forgot-password-link"
+                        type="button"
+                        onClick={() => {
+                          setShowForgotPassword(true);
+                          setError("");
+                          setForgotSuccess(false);
+                          setForgotEmail(email); // prefill with whatever was typed in login email field
+                        }}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold transition focus:outline-none"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Password strength visual indicator (only shown during SignUp) */}
+                  {!isLogin && password && (
+                    <div className="space-y-1.5 px-0.5">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500 font-bold uppercase">Strength</span>
+                        <span className="font-semibold text-slate-300">{passwordStrength.label}</span>
+                      </div>
+                      <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                        <div className={`h-full transition-all duration-300 ${passwordStrength.color}`}></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirm Password (only shown in Signup mode) */}
+                  {!isLogin && (
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <input
+                        type="password"
+                        placeholder="Confirm Password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-950/50 border border-slate-900 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs text-white placeholder-slate-600 transition"
+                        required={!isLogin}
+                      />
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={!isFormValid || loading}
+                      className={`w-full py-3 px-4 text-xs font-bold text-white rounded-xl transition shadow-lg relative overflow-hidden select-none active:scale-[0.98] ${
+                        isFormValid && !loading
+                          ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 shadow-indigo-600/10 cursor-pointer"
+                          : "bg-slate-900 border border-slate-800 shadow-none cursor-not-allowed opacity-60 text-slate-500"
+                      }`}
+                    >
+                      {loading ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Verifying details...
+                        </span>
+                      ) : isLogin ? (
+                        "Authorize Session"
+                      ) : (
+                        "Initialize Account"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
 
           {/* Toggle Button in bottom container */}
-          <div className="bg-slate-950/20 border border-slate-900 rounded-2xl py-4 px-6 text-center text-xs">
-            <span className="text-slate-500">
-              {isLogin ? "Need a tracker account? " : "Already registered? "}
-            </span>
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError("");
-              }}
-              className="text-indigo-400 font-bold hover:text-indigo-300 underline focus:outline-none transition"
-            >
-              {isLogin ? "Create Account" : "Access Console"}
-            </button>
-          </div>
+          {!showForgotPassword && (
+            <div className="bg-slate-950/20 border border-slate-900 rounded-2xl py-4 px-6 text-center text-xs">
+              <span className="text-slate-500">
+                {isLogin ? "Need a tracker account? " : "Already registered? "}
+              </span>
+              <button
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError("");
+                }}
+                className="text-indigo-400 font-bold hover:text-indigo-300 underline focus:outline-none transition"
+              >
+                {isLogin ? "Create Account" : "Access Console"}
+              </button>
+            </div>
+          )}
 
         </div>
 
